@@ -31,7 +31,7 @@ const errorEl = document.getElementById("error");
  */
 async function fetchMedicines() {
     const response = await fetch(`${BASE_URL}/medicines`)
-    const data = response.json()
+    const data = await response.json()
     if(response.ok){
         return data.medicines
     } else{
@@ -70,9 +70,41 @@ function formatPrice(price){
     return {message: `£${cleanPrice.toFixed(2)}`, invalid: false}
 }
 
+function makeCell(tag,result){
+    const cell = document.createElement(tag)
+    cell.textContent = result.message
+    if(result.invalid){
+        cell.classList.add('invalid')
+    }
+}
 
 
 function renderMedicines(data) {
+resultsEl.textContent = ""
+    const table = document.createElement('table')
+    const tHead = document.createElement('tHead')
+    const tRow = document.createElement('tr')
+
+    for(const heading of ["Name", "Price"]){
+        const th = document.createElement('th')
+        th.textContent = heading
+        tRow.appendChild(th)
+    }
+    tHead.appendChild(tRow)
+    table.appendChild(tHead)
+
+    
+    const tBody = document.createElement('tbody')
+    for(const med of data){
+let data = renderMedicines(data.medicines)
+        const row = document.createElement('tr')
+        row.appendChild(makeCell("td"), formatName(med.name))
+         row.appendChild(makeCell("td"), formatPrice(med.price))
+         tBody.appendChild(row)
+
+    }
+    table.appendChild(tBody)
+    resultsEl.appendChild(table)
     // TODO: build a table (the .results styles expect a <table>), iterate the
     // records, and render each row safely. Use the .invalid class to flag bad
     // values if you like.
@@ -84,16 +116,61 @@ function renderMedicines(data) {
  * server). When you give up, show a useful message in #error. On success,
  * render the data and clear #error. Show/hide the #loading area while working.
  */
-async function fetchUnreliable() {
-    // TODO: implement the retry loop here.
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function fetchUnreliable(maxAttempts, delayMs = 500) {
+    loadingEl.hidden = false
+    try{
+        for(let attempt = 1; attempt <= maxAttempts; attempt++){
+            try{
+                const response = await fetch(`${BASE_URL}/medicines/unreliable`)
+                const data = await response.json()
+                if(response.ok){
+                   await fetchMedicines()
+                   renderMedicines(data.medicines)
+                     errorEl.hidden = true
+                    errorEl.textContent = ""
+                   return
+                } else{
+                    throw new Error(`Attempt ${attempt} failed: err.message`)
+                  
+                }
+                
+            } catch(err){
+                   errorEl.hidden = false
+                    errorEl.textContent = `Maximum attempts have been reached: ${maximumAttempts}, the server may be currently unavailable. Please try again next time.`
+                       if(attempt <= maxAttempts){
+                    await sleep(delayMs)
+                }
+                
+            }
+        }
+    } finally{
+        loadingEl.hidden = false
+    }
+
 }
 
 // ---- Button wiring (already works - no need to change) ----
 document.getElementById("load-medicines").addEventListener("click", async () => {
+    loadingEl.hidden = false
+    errorEl.hidden = true
+    errorEl.textContent = ""
+
+    try{
+   await fetchMedicines()
+      renderMedicines(data)
+
+    } catch(err){
+        errorEl.hidden = false
+        errorEl.textContent = err.message
+    } finally{
+        loadingEl.hidden = false;
+    }
     // TODO: call fetchMedicines() then renderMedicines(data),
     // showing #loading and clearing #error appropriately.
 });
 
 document.getElementById("load-unreliable").addEventListener("click", async () => {
-    // TODO: call fetchUnreliable().
+    await fetchUnreliable()
 });
