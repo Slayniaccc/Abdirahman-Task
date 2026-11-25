@@ -30,6 +30,13 @@ const errorEl = document.getElementById("error");
  * Return the medicines array. Surface network/HTTP errors so the caller can show them.
  */
 async function fetchMedicines() {
+    const response = await fetch(`${BASE_URL}/medicines`)
+    const data = response.json()
+    if(response.ok){
+        return data.medicines
+    } else{
+        throw new Error(`HTTP ERROR: ${response.status}`)
+    }
     // TODO: fetch(`${BASE_URL}/medicines`), check response.ok, return the data.
 }
 
@@ -39,6 +46,32 @@ async function fetchMedicines() {
  * null price, missing price, non-numeric price. Show something sensible for each.
  * TODO: clear the #error area on success.
  */
+
+function formatName(name){
+    if(name == null){
+        return {message: "The name of this medicine isn't currently available", invalid:true}
+    }
+    const trimmed = name.trim()
+    if(trimmed.length == 0){
+          return {message: "The name of this medicine isn't currently available", invalid:true}
+    }
+    return {message: trimmed, invalid:false}
+}
+
+function formatPrice(price){
+    if(price == null){
+        return {message: "The price of this medicine isn't currently available", invalid:true}
+    }
+
+    const cleanPrice = Number.parseFloat(price)
+    if(!Number.isFinite(cleanPrice)){
+       return {message: "The price of this medicine is invalid", invalid:true}
+    }
+    return {message: `£${cleanPrice.toFixed(2)}`, invalid: false}
+}
+
+
+
 function renderMedicines(data) {
     // TODO: build a table (the .results styles expect a <table>), iterate the
     // records, and render each row safely. Use the .invalid class to flag bad
